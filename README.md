@@ -12,7 +12,7 @@
 - 环境安装包、工具包(Install_package) + 嵌入式神经网络部署源码(NNOM_Demo)
 - 二次开发方案   
 
-
+![image-20241103020624456](markdown-img/README.assets/image-20241103020624456.png)
 
 
 
@@ -1611,13 +1611,13 @@ PCB部分 （如果你自己画的有问题  或者不知道是否正确 都可�
 
 # 12.外壳部分-3D打印工程详解
 
-.\电子法棒\3D_print 为外壳部分 3D打印的工程文件 可以直接打印
+.\电子法棒\3D_print 为外壳部分 3D打印的工程文件 可以直接打印<img src="markdown-img/README.assets/image-20241103020421826.png" alt="image-20241103020421826" style="zoom: 25%;" />
 
-<img src="assets/image-20240923205659528.png" alt="image-20240923205659528" style="zoom: 67%;" /> 
+<img src="markdown-img/README.assets/image-20241103020507310.png" alt="image-20241103020507310" style="zoom: 50%;" />
 
-<img src="assets/image-20240923205728224.png" alt="image-20240923205728224" style="zoom:67%;" /> 
+<img src="markdown-img/README.assets/image-20241103020514553.png" alt="image-20241103020514553" style="zoom: 50%;" />
 
-
+<img src="markdown-img/README.assets/image-20241103020520632.png" alt="image-20241103020520632" style="zoom:50%;" />
 
 
 

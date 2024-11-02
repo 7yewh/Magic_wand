@@ -5851,27 +5851,27 @@ Image component sizes
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Object Name
 
        614          0         13          0         13       5534   button.o
-       694          0        205          0         21       2917   cyberrypotter.o
+       694          0        205          0         21       2922   cyberrypotter.o
        116          0          0          0          0       1098   delay.o
        744          0          0          0          0       5310   iic.o
-       544          0          0          0       3624       2121   imu.o
+       544          0          0          0       3624       2126   imu.o
       7720         40         82         44          0      19896   inv_mpu.o
       3248         16       3062          0         16       8667   inv_mpu_dmp_motion_driver.o
        354          6          0          0          8       2205   led.o
-      1174          0       8061          1      10843       9820   main.o
+      1174          0       8061          1      10843       9825   main.o
        194          0          0          0          0       3348   misc.o
-       316          0         43         48        130       2390   module0.o
-       106          0          0          0          0       1733   module1.o
-         6          0          0          0          0        524   module10.o
-       106          0          0          0          0       1733   module2.o
-       106          0          0          0          0       1733   module3.o
-         6          0          0          0          0        519   module4.o
-         6          0          0          0          0        519   module5.o
-         6          0          0          0          0        519   module6.o
-         6          0          0          0          0        519   module7.o
-         6          0          0          0          0        519   module8.o
-         6          0          0          0          0        519   module9.o
-       836          0        352          9          0       5865   mpu6050.o
+       316          0         43         48        130       2394   module0.o
+       106          0          0          0          0       1738   module1.o
+         6          0          0          0          0        529   module10.o
+       106          0          0          0          0       1738   module2.o
+       106          0          0          0          0       1738   module3.o
+         6          0          0          0          0        524   module4.o
+         6          0          0          0          0        524   module5.o
+         6          0          0          0          0        524   module6.o
+         6          0          0          0          0        524   module7.o
+         6          0          0          0          0        524   module8.o
+         6          0          0          0          0        524   module9.o
+       836          0        352          9          0       5870   mpu6050.o
        232          0          0          0          0       2473   new_study_ir.o
       4458          0       1808          0         16      16711   nnom.o
        210          0          0          0          0       9119   nnom_activation.o
@@ -5888,7 +5888,7 @@ Image component sizes
        124          0          0          0          0       4176   nnom_output.o
        274          0          0          0          0       4201   nnom_softmax.o
        632          0         34          0          0       4642   nnom_tensor.o
-       322          0          0          0          0       1215   protocol.o
+       322          0          0          0          0       1220   protocol.o
         36          8        236          0       1024        852   startup_stm32f10x_md.o
        322          0          0          0          0       2878   stm32f10x_exti.o
        586          0          0          0          0       5719   stm32f10x_gpio.o
@@ -5899,7 +5899,7 @@ Image component sizes
        236          0         11          0          0       4321   usart.o
 
     ----------------------------------------------------------------------
-     36260         70      13988        108      15716     269900   Object Totals
+     36260         70      13988        108      15716     269979   Object Totals
          0          0         32          0          0          0   (incl. Generated)
        286          0         29          6         21          0   (incl. Padding)
 
@@ -5985,8 +5985,8 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
 
-     44484        398      14132        116      15716     271236   Grand Totals
-     44484        398      14132        116      15716     271236   ELF Image Totals
+     44484        398      14132        116      15716     271315   Grand Totals
+     44484        398      14132        116      15716     271315   ELF Image Totals
      44484        398      14132        116          0          0   ROM Totals
 
 ==============================================================================
