@@ -455,220 +455,113 @@ Module：
 分析main.c
 
 ```c
-#include "CyberryPotter.h"		//系统相关的功能 包含中断等
-#include "weights.h" 			//神经网络模型的权重文件
-#include "nnom.h"				//负责神经网络推理的具体操作。
+#include "CyberryPotter.h"
+#include "weights.h"
+#include "nnom.h"
 
-//输入数据进行量化处理
-#define QUANTIFICATION_SCALE (pow(2,INPUT_1_OUTPUT_DEC))
-//推理的输出阈值
-#define OUPUT_THRESHOLD 63 
+#define QUANTIFICATION_SCALE (pow(2, INPUT_1_OUTPUT_DEC))
+#define OUTPUT_THRESHOLD 63
 
 void model_feed_data(void);
-void model_feed_data_subdivisions(void);
 Model_Output_t model_get_output(void);
 
 #ifdef NNOM_USING_STATIC_MEMORY
-	uint8_t static_buf[1024 * 10]; 
-#endif //NNOM_USING_STATIC_MEMORY
-nnom_model_t* model;
+    uint8_t static_buf[1024 * 10];
+#endif 
 
-//神经网络推理的输出结果
+nnom_model_t* model;
 volatile Model_Output_t model_output = -1;
 
-int main(void)
-{       
-	// 初始化整个系统，包括外设的配置和状态设置
-	System_Init();
-    //控制LED灯以10Hz频率闪烁，表示系统正在启动或初始化中。
-	LED.Operate(BLINK_10HZ);
-    
-	//创建CNN模型
-	#ifdef NNOM_USING_STATIC_MEMORY
-    //设置静态内存缓冲区
-    //创建一个CNN模型实例（假设这是使用nnom库的模型，通常用于神经网络推理任务）
-		nnom_set_static_buf(static_buf, sizeof(static_buf)); 
-	#endif
-    
-    //创建一个 nnom 的 CNN 模型，初始化神经网络用于推理任务。
-	model = nnom_model_create();
-	
-	printf("While");
-	while(1){
-		//当检测到按钮处于保持状态（BUTTON_HOLD）且IMU处于空闲状态时，执行后续操作。
-		if(Button.status == BUTTON_HOLD && IMU.status == IMU_Idle){
-            //IMU数据采集
-			IMU.Sample_Start();					//启动IMU数据采集。
-			EXTI_Stop();						//停止外部中断
-			LED.Operate(OFF);
-			while(IMU.status != IMU_Sampled);	//等待IMU数据采集完成。
-			LED.Operate(ON);
-            
-			#ifndef SYSTEM_MODE_DATA_COLLECT
-			model_output = model_get_output();			//将IMU采集到的数据输入CNN模型进行推理
-			
-			if(model_output != Unrecognized){			//未识别到任何动作 Unrecognized 
-            //根据当前的System_Mode执行不同的操作函数，Mode0_Handler()和Mode1_Handler()分别是模式0和模式1下的处理函数
-				switch(Cyberry_Potter.System_Mode){		
-					case SYSTEM_MODE_0:
-						Module.Mode0_Handler();
-						break;
-					case SYSTEM_MODE_1:
-						Module.Mode1_Handler();
-						break;
-					default:
-						break;
-				}
-			}
-			#endif
-            //重置IMU状态为IMU_Idle，表示数据采集完成。
-            //清除按钮状态，并恢复外部中断（EXTI_Restore()），让系统回到正常的中断处理状态。
-			IMU.status = IMU_Idle;
-			Button.status_clear();
-			EXTI_Restore();
-		}
-        //如果检测到按钮长按状态（BUTTON_HOLD_LONG），系统进入长按处理逻辑：
-		else if(Button.status == BUTTON_HOLD_LONG){
-            //如果检测到按钮长按状态（BUTTON_HOLD_LONG），系统进入长按处理逻辑：
-			printf("BUTTON_HOLD_LONG\n");
-			LED.Operate(BLINK_5HZ);
-			Cyberry_Potter_System_Status_Update();
-			#ifdef LASER_ENABLE
-            //可选功能
-			if(Cyberry_Potter.System_Mode == SYSTEM_MODE_2){
-				Laser.status = ON;
-				Laser.Operate(Laser.status);
-			}
-			else{
-				Laser.status = OFF;
-				Laser.Operate(Laser.status);
-			}
-			#endif
-            //清除按钮状态
-			Button.status_clear();
-		}
-	}
+int main(void) {
+    System_Init();
+    LED.Operate(BLINK_10HZ);
+
+    #ifdef NNOM_USING_STATIC_MEMORY
+        nnom_set_static_buf(static_buf, sizeof(static_buf)); 
+    #endif 
+
+    model = nnom_model_create();
+
+    while (1) {
+        if (Button.status == BUTTON_HOLD && IMU.status == IMU_Idle) {
+            IMU.Sample_Start();
+            EXTI_Stop();
+            LED.Operate(OFF);
+
+            while (IMU.status != IMU_Sampled);
+            LED.Operate(ON);
+
+            #ifndef SYSTEM_MODE_DATA_COLLECT
+                model_output = model_get_output();
+                
+                if (model_output != Unrecognized) {
+                    switch (Cyberry_Potter.System_Mode) {
+                        case SYSTEM_MODE_0:
+                            Module.Mode0_Handler();
+                            break;
+                        case SYSTEM_MODE_1:
+                            Module.Mode1_Handler();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            #endif
+
+            IMU.status = IMU_Idle;
+            Button.status_clear();
+            EXTI_Restore();
+        } else if (Button.status == BUTTON_HOLD_LONG) {
+            printf("BUTTON_HOLD_LONG\n");
+            LED.Operate(BLINK_5HZ);
+            Cyberry_Potter_System_Status_Update();
+            Button.status_clear();
+        }
+    }
 }
 
-//3维数据
-#ifdef SERIAL_DEBUG_3_SUBDIVISION
-void model_feed_data(void) 
-{
-	const double scale = QUANTIFICATION_SCALE;
-	uint16_t i = 0;
-	for(i = 0; i < IMU_SEQUENCE_LENGTH_MAX;i++){
-		nnom_input_data[i*3] = (int8_t)round(IMU.gyro[i][Roll] * scale);
-		nnom_input_data[i*3+1] = (int8_t)round(IMU.gyro[i][Pitch] * scale);
-		nnom_input_data[i*3+2] = (int8_t)round(IMU.gyro[i][Yaw] * scale);
-	}
-}
-/*
-量化：通过scale对数据进行缩放并转换为整型
-作用：读取IMU的陀螺仪数据（Roll、Pitch、Yaw），通过量化缩放（QUANTIFICATION_SCALE）将浮点数转换为8位整数，并填充到输入数组nnom_input_data中。
-每次循环：处理一组陀螺仪数据（即一个时刻的Roll、Pitch、Yaw三个轴数据），将其量化后存储到模型的输入数组中。
-*/
-#endif
-
-//6组数据
-#ifdef SERIAL_DEBUG_6_SUBDIVISION
-void model_feed_data1(void)
-{
-	const double scale = QUANTIFICATION_SCALE;
-	uint16_t i = 0;
-	for(i = 0; i < IMU_SEQUENCE_LENGTH_MAX;i++){
-		nnom_input_data[i*6] = 	 (int8_t)round(IMU.acc[i][AccX] * scale);
-		nnom_input_data[i*6+1] = (int8_t)round(IMU.acc[i][AccY] * scale);
-		nnom_input_data[i*6+2] = (int8_t)round(IMU.acc[i][AccZ] * scale);
-		nnom_input_data[i*6+3] = (int8_t)round(IMU.gyro[i][Roll] * scale);
-		nnom_input_data[i*6+4] = (int8_t)round(IMU.gyro[i][Pitch] * scale);
-		nnom_input_data[i*6+5] = (int8_t)round(IMU.gyro[i][Yaw] * scale);
-	}
-}
-//每次循环采集6个数值，分别是3个加速度计数据和3个陀螺仪数据，并依次填充到nnom_input_data中。
-#endif
-
-Model_Output_t model_get_output(void)
-{
-	volatile uint8_t i = 0;
-	volatile Model_Output_t max_output = -128; 	//用于记录推理结果中最大的输出值
-	Model_Output_t ret = 0; 					//用于存储模型最终的分类结果。
+void model_feed_data(void) {
+    const double scale = QUANTIFICATION_SCALE;
     
-    //选择执行3维数据输入或6维数据输入的函数。如果没有定义，默认执行model_feed_data函数。
-#ifdef SERIAL_DEBUG_3_SUBDIVISION
+    for (uint16_t i = 0; i < IMU_SEQUENCE_LENGTH_MAX; i++) {
+        nnom_input_data[i * 3]     = (int8_t)round(IMU.gyro[i][Roll] * scale);
+        nnom_input_data[i * 3 + 1] = (int8_t)round(IMU.gyro[i][Pitch] * scale);
+        nnom_input_data[i * 3 + 2] = (int8_t)round(IMU.gyro[i][Yaw] * scale);
+    }
+}
+
+Model_Output_t model_get_output(void) {
     model_feed_data();
-#elif defined(SERIAL_DEBUG_6_SUBDIVISION)
-    model_feed_data_subdivisions();
-#else
-    // 默认执行 model_feed_data
-    model_feed_data();
-#endif
-    
-    //执行神经网络模型的推理，模型推理结果会被存储在nnom_output_data数组中，该数组的每个元素代表不同类别的预测分数。
-	model_run(model);
-    
-    //遍历所有类别（共13类），找到预测得分最高的类别，并将对应的索引i作为模型的输出结果存入ret。
-	for(i = 0; i < 13;i++){
-#ifdef SERIAL_DEBUG
-		printf("Output[%d] = %.2f %%\n",i,(nnom_output_data[i] / 127.0)*100);
-#endif //SERIAL_DEBUG
-		if(nnom_output_data[i] >= max_output){
-			max_output = nnom_output_data[i] ;
-			ret = i;
-		}
-	}
-    //如果最大输出值低于设定的阈值（OUPUT_THRESHOLD）或者预测结果为NoMotion（未检测到动作），则将模型结果设为Unrecognized（未识别）。
-	if(max_output < OUPUT_THRESHOLD || ret == NoMotion){
-		ret = Unrecognized;
-	}
-	
-#ifdef SERIAL_DEBUG
-	switch(ret){
-		case Unrecognized:
-			printf("Unrecognized");
-			break;
-		case RightAngle:
-			printf("RightAngle");
-			break;
-		case SharpAngle:
-			printf("SharpAngle");
-			break;
-		case Lightning:
-			printf("Lightning");
-			break;
-		case Triangle:
-			printf("Triangle");
-			break;
-		case Letter_h:
-			printf("Letter_h");
-			break;
-		case letter_R:
-			printf("Letter_R");
-			break;
-		case letter_W:
-			printf("Letter_W");
-			break;
-		case letter_phi:
-			printf("Letter_phi");
-			break;
-		case Circle:
-			printf("Circle");
-			break;
-		case UpAndDown:
-			printf("UpAndDown");
-			break;
-		case Horn:
-			printf("Horn");
-			break;
-		case Wave:
-			printf("Wave");
-			break;
-		case NoMotion:
-			printf("Unrecognized");
-			break;
-	}
-	printf("\n");
-#endif //SERIAL_DEBUG
-	return ret;
+    model_run(model);
+
+    int8_t max_output = -128;
+    Model_Output_t ret = Unrecognized;
+
+    for (uint8_t i = 0; i < 13; i++) {
+        #ifdef SERIAL_DEBUG
+            printf("Output[%d] = %.2f %%\n", i, (nnom_output_data[i] / 127.0) * 100);
+        #endif
+
+        if (nnom_output_data[i] > max_output) {
+            max_output = nnom_output_data[i];
+            ret = i;
+        }
+    }
+
+    if (max_output < OUTPUT_THRESHOLD) {
+        ret = Unrecognized;
+    }
+
+    #ifdef SERIAL_DEBUG
+    const char* gesture_names[] = {
+        "Unrecognized", "RightAngle", "SharpAngle", "Lightning", "Triangle", 
+        "Letter_h", "Letter_R", "Letter_W", "Letter_phi", "Circle", 
+        "UpAndDown", "Horn", "Wave", "NoMotion"
+    };
+    printf("%s\n", gesture_names[ret]);
+    #endif
+
+    return ret;
 }
 
 ```
@@ -685,186 +578,118 @@ extern struct LED_t LED;
 Cyberry_Potter_t Cyberry_Potter;
 Module_t Module;
 
-
-//这是两个回调函数 灯闪烁的频率
-void Module_None_Mode0_Handler(void)
-{
-	LED.Operate(BLINK_10HZ);
-}
-void Module_None_Mode1_Handler(void)
-{
-	LED.Operate(BLINK_5HZ);
+void Module_None_Mode0_Handler(void) {
+    LED.Operate(BLINK_10HZ);
 }
 
-/*
-Module_Init() 函数负责初始化不同的模块，依据 Module.Type 类型选择对应的初始化函数（例如，Module0_Init() 到 Module10_Init()）。这些初始化函数中，还为模块设置了模式 0 和模式 1 的回调处理函数。
-如果模块类型是 Module_Type_None，则会默认使用 Module_None_Mode0_Handler 和 Module_None_Mode1_Handler 作为回调。
-*/
-void Module_Init(void)
-{
-	switch (Module.Type) {
-		case Module_Type_None:
-			Module.Mode0_Handler = &Module_None_Mode0_Handler;
-			Module.Mode1_Handler = &Module_None_Mode1_Handler;
-			break;
-		case Module_Type_0:
-			Module0_Init();
-			printf("Module Module_Type_0 Init\n");
-			Module.Mode0_Handler = &Module0_Mode0_Handler;
-			Module.Mode1_Handler = &Module0_Mode1_Handler;
-			break;
-		case Module_Type_1:
-			Module1_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module1_Mode0_Handler;
-			Module.Mode1_Handler = &Module1_Mode1_Handler;
-			break;
-		case Module_Type_2:
-			Module2_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module2_Mode0_Handler;
-			Module.Mode1_Handler = &Module2_Mode1_Handler;
-			break;
-		case Module_Type_3:
-			Module3_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module3_Mode0_Handler;
-			Module.Mode1_Handler = &Module3_Mode1_Handler;
-			break;
-		case Module_Type_4:
-			Module4_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module4_Mode0_Handler;
-			Module.Mode1_Handler = &Module4_Mode1_Handler;
-			break;
-		case Module_Type_5:
-			Module5_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module5_Mode0_Handler;
-			Module.Mode1_Handler = &Module5_Mode1_Handler;
-			break;
-		case Module_Type_6:
-			Module6_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module6_Mode0_Handler;
-			Module.Mode1_Handler = &Module6_Mode1_Handler;
-			break;
-		case Module_Type_7:
-			Module7_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module7_Mode0_Handler;
-			Module.Mode1_Handler = &Module7_Mode1_Handler;
-			break;
-		case Module_Type_8:
-			Module8_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module8_Mode0_Handler;
-			Module.Mode1_Handler = &Module8_Mode1_Handler;
-			break;
-		case Module_Type_9:
-			Module9_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module9_Mode0_Handler;
-			Module.Mode1_Handler = &Module9_Mode1_Handler;
-			break;
-		case Module_Type_10: 
-			Module10_Init();
-			printf("Module %d Init\n",Module.Type);
-			Module.Mode0_Handler = &Module10_Mode0_Handler;
-			Module.Mode1_Handler = &Module10_Mode1_Handler;
-			break;
-		default:
-			break;
-	}
+void Module_None_Mode1_Handler(void) {
+    LED.Operate(BLINK_5HZ);
 }
 
-/*
-System_Init() 函数是整个系统初始化的入口。它负责初始化串口通信（USART1_Init()）、LED、按钮、IMU（惯性测量单元）等外设。
-初始化后，默认会将 Module.Type 设为 Module_Type_0，并调用 Module_Init() 来初始化相应的模块。
-最后设置模块的模式处理函数，初始为 Module_None_Mode0_Handler 和 Module_None_Mode1_Handler。
-*/
-void System_Init(void)
-{
-	USART1_Init();
-	LED_Init();
-  Button_Init();
-	//SPI2_Init();
-	IMU_Init();
-	Module.Mode0_Handler = &Module_None_Mode0_Handler;
-	Module.Mode1_Handler = &Module_None_Mode1_Handler;
-	Module.Type = Module_Type_0;
-	printf("Module_Type_0");
-	Module_Init();
+/// @brief Initialize required peripheral and function according to module type
+void Module_Init(void) {
+    typedef void (*InitFunc)();
+    typedef void (*HandlerFunc)();
 
+    InitFunc initFunctions[] = {
+        NULL, // Module_Type_None
+        Module0_Init, Module1_Init, Module2_Init, Module3_Init,
+        Module4_Init, Module5_Init, Module6_Init, Module7_Init,
+        Module8_Init, Module9_Init, Module10_Init
+    };
+
+    HandlerFunc mode0Handlers[] = {
+        Module_None_Mode0_Handler,
+        Module0_Mode0_Handler, Module1_Mode0_Handler, Module2_Mode0_Handler,
+        Module3_Mode0_Handler, Module4_Mode0_Handler, Module5_Mode0_Handler,
+        Module6_Mode0_Handler, Module7_Mode0_Handler, Module8_Mode0_Handler,
+        Module9_Mode0_Handler, Module10_Mode0_Handler
+    };
+
+    HandlerFunc mode1Handlers[] = {
+        Module_None_Mode1_Handler,
+        Module0_Mode1_Handler, Module1_Mode1_Handler, Module2_Mode1_Handler,
+        Module3_Mode1_Handler, Module4_Mode1_Handler, Module5_Mode1_Handler,
+        Module6_Mode1_Handler, Module7_Mode1_Handler, Module8_Mode1_Handler,
+        Module9_Mode1_Handler, Module10_Mode1_Handler
+    };
+
+    if (Module.Type < sizeof(initFunctions) / sizeof(initFunctions[0]) && initFunctions[Module.Type] != NULL) {
+        initFunctions[Module.Type]();
+        printf("Module %d Init\n", Module.Type);
+        Module.Mode0_Handler = mode0Handlers[Module.Type];
+        Module.Mode1_Handler = mode1Handlers[Module.Type];
+    } else {
+        Module.Mode0_Handler = &Module_None_Mode0_Handler;
+        Module.Mode1_Handler = &Module_None_Mode1_Handler;
+    }
 }
 
-//按键模式切换  并且在调试模式下，会输出当前系统模式的状态。
-void Cyberry_Potter_System_Status_Update(void)
-{
-      switch(Cyberry_Potter.System_Mode){
-	      case SYSTEM_MODE_0:
-			Cyberry_Potter.System_Mode = SYSTEM_MODE_1;
-			#ifdef SERIAL_DEBUG
-			printf("SYSTEM_MODE_1\n");
-			#endif //SERIAL_DEBUG
-			break;
-	      case SYSTEM_MODE_1:
-			#ifdef LASER_ENABLE
-			Cyberry_Potter.System_Mode = SYSTEM_MODE_2;
-			#else
-			Cyberry_Potter.System_Mode = SYSTEM_MODE_0;
-			#endif
-			#ifdef SERIAL_DEBUG
-			printf("SYSTEM_MODE_0\n");
-			#endif //SERIAL_DEBUG
-			break;
-	      #ifdef LASER_ENABLE
-	      case SYSTEM_MODE_2:
-			Cyberry_Potter.System_Mode = SYSTEM_MODE_0;
-			#ifdef SERIAL_DEBUG
-			printf("SYSTEM_MODE_0\n");
-			#endif //SERIAL_DEBUG
-			break;
-	      #endif
-      }  
+/// @brief System initialization
+void System_Init(void) {
+    USART1_Init();
+    LED_Init();
+    Button_Init();
+    IMU_Init();
+    Module.Type = Module_Type_0;
+    printf("Module_Type_0\n");
+    Module_Init();
 }
 
-
-/*
-是外部中断的处理函数，主要用于处理 EXTI 线路 5 的中断信号。当检测到该中断时，调用 IMU_Get_Data(i) 读取 IMU 数据。读取完成后，IMU 会停止采样，并清除中断标志位。
-此外，函数中还实现了一个简单的采样控制逻辑，变量 i 用于记录采样次数，每当达到最大值 IMU_SEQUENCE_LENGTH_MAX 时，采样停止。
-*/
-void EXTI9_5_IRQHandler(void)
-{
-	static uint8_t i = 0;
-	//IMU read
-	if(EXTI_GetITStatus(EXTI_Line5)==SET){
-		IMU_Get_Data(i);
-		i++;
-		if(i >= IMU_SEQUENCE_LENGTH_MAX){
-			i = 0;
-			//printf("Samlpled\n");
-			IMU.Sample_Stop();
-			#ifdef SYSTEM_MODE_DATA_COLLECT
-			Delay_ms(200);
-			IMU_Data_Print();
-			#endif
-		}	
-		EXTI_ClearITPendingBit(EXTI_Line5);	
-  }
+void Cyberry_Potter_System_Status_Update(void) {
+    switch (Cyberry_Potter.System_Mode) {
+        case SYSTEM_MODE_0:
+            Cyberry_Potter.System_Mode = SYSTEM_MODE_1;
+            #ifdef SERIAL_DEBUG
+            printf("SYSTEM_MODE_1\n");
+            #endif
+            break;
+        case SYSTEM_MODE_1:
+            #ifdef LASER_ENABLE
+            Cyberry_Potter.System_Mode = SYSTEM_MODE_2;
+            #else
+            Cyberry_Potter.System_Mode = SYSTEM_MODE_0;
+            #endif
+            #ifdef SERIAL_DEBUG
+            printf("SYSTEM_MODE_0\n");
+            #endif
+            break;
+        #ifdef LASER_ENABLE
+        case SYSTEM_MODE_2:
+            Cyberry_Potter.System_Mode = SYSTEM_MODE_0;
+            #ifdef SERIAL_DEBUG
+            printf("SYSTEM_MODE_0\n");
+            #endif
+            break;
+        #endif
+    }
 }
 
+/// @brief IMU and IR RF module interrupt handler
+void EXTI9_5_IRQHandler(void) {
+    static uint8_t i = 0;
+    if (EXTI_GetITStatus(EXTI_Line5) == SET) {
+        IMU_Get_Data(i);
+        if (++i >= IMU_SEQUENCE_LENGTH_MAX) {
+            i = 0;
+            IMU.Sample_Stop();
+            #ifdef SYSTEM_MODE_DATA_COLLECT
+            Delay_ms(200);
+            IMU_Data_Print();
+            #endif
+        }
+        EXTI_ClearITPendingBit(EXTI_Line5);
+    }
+}
 
-//EXTI_Stop() 函数用于关闭 EXTI 线路 0 的中断响应，即暂时禁用该中断。
-//EXTI_Restore() 函数则用于恢复 EXTI 线路 0 的中断响应，即重新启用中断。
-void EXTI_Stop(void)
-{
-	EXTI->IMR &= ~(EXTI_Line0);
+void EXTI_Stop(void) {
+    EXTI->IMR &= ~(EXTI_Line0);
 }
-void EXTI_Restore(void)
-{
-	EXTI->IMR |= EXTI_Line0;
+
+void EXTI_Restore(void) {
+    EXTI->IMR |= EXTI_Line0;
 }
+
 ```
 
 
@@ -876,23 +701,20 @@ module0.c 红外解析
 #include "new_study_IR.h"
 #include "protocol.h"
 
-extern volatile Model_Output_t model_output; 	//表示不同的模型识别结果
-uint16_t bufLen;								//存储红外信号的打包数据长度
-uint8_t buf[128], i;							//红外信号数据
+extern volatile Model_Output_t model_output;
+uint16_t bufLen;
+uint8_t buf[128], i;
 
-// 定义模型名称
-const char* model_names[] = {					//这些模型名称将用于后续打印和调试输出
+const char* model_names[] = {
     "RightAngle", "SharpAngle", "Lightning", "Triangle", 
     "Letter_h", "Letter_R", "Letter_W", "Letter_phi", 
     "Circle", "UpAndDown", "Horn", "Wave"
 };
 
-// 定义模型对应的索引值
-const uint8_t model_indices[] = {				//在红外信号处理时，该索引值将决定信号的内容。
+const uint8_t model_indices[] = {
     0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 1, 1
 };
- 
-// 打印模型名称 确保 model 的值没有超过 model_names[] 数组的长度范围。如果模型有效，则打印其对应的名称
+
 void print_model_name(Model_Output_t model) {
     if (model < sizeof(model_names) / sizeof(model_names[0])) {
         printf("%s", model_names[model]);
@@ -901,7 +723,6 @@ void print_model_name(Model_Output_t model) {
     }
 }
 
-// 检查模型并返回结果 检查当前的 model_output（即模型输出值），并返回对应的模型。如果模型输出在 model_indices[] 数组范围内，则通过指针 model_index 返回对应的索引值。同时，调用 print_model_name() 函数打印模型名称。
 Model_Output_t check_model(uint8_t* model_index) {
     Model_Output_t ret = model_output;
     
@@ -915,14 +736,6 @@ Model_Output_t check_model(uint8_t* model_index) {
     return ret;
 }
 
-// 处理红外信号（发射或学习）
-/*
-函数负责根据当前模式（发射或学习）来处理红外信号：
-首先调用 check_model() 函数检查当前模型，获取相应的 model_index。
-如果模型有效，则根据 mode 选择不同的操作（IR_Send_Pack 或 IR_Learn_Pack）。
-将打包好的数据通过 Uart_Send() 函数发送出去。
-成功发送信号后，通过 LED.Operate() 让LED以5Hz频率闪烁，表示信号成功发送。如果模型无效，则LED以2Hz频率闪烁，表示错误。
-*/
 void handle_ir_signal(uint8_t mode) {
     uint8_t model_index;
     
@@ -930,7 +743,7 @@ void handle_ir_signal(uint8_t mode) {
 				#ifdef SERIAL_DEBUG
 				printf(" * %d * ", model_index);
 				#endif //SERIAL_DEBUG
-        bufLen = (mode == 0) ? IR_Send_Pack(buf, model_index) : IR_Learn_Pack(buf, model_index);
+		bufLen = (mode == 0)?IR_Send_Pack(buf,model_index):IR_Learn_Pack(buf,model_index);
         Uart_Send(buf, bufLen);
         LED.Operate(BLINK_5HZ);
     } else {
@@ -938,21 +751,18 @@ void handle_ir_signal(uint8_t mode) {
     }
 }
 
-// 初始化模块
 void Module0_Init(void) {
-    //Module0_Init() 函数负责初始化模块的串口配置，通过 USART2_Config() 函数设置串口参数，使能通信。
     USART2_Config();
 }
 
-// 模式0处理（红外发射） 模式0表示红外信号的发送。
 void Module0_Mode0_Handler(void) {
     handle_ir_signal(0);
 }
 
-// 模式1处理（红外学习） 模式1表示红外信号的学习。
 void Module0_Mode1_Handler(void) {
     handle_ir_signal(1);
 }
+
 ```
 
 
