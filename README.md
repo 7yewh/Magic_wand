@@ -10,7 +10,7 @@
 - QT上位机动作识别模型训练脚本 （用于训练模型等功能）（**Upper_computer**）
 - 图示、Demo中的13个动作轨迹图例(**Model_trajectories**)
 - 环境安装包、工具包(Install_package) + 嵌入式神经网络部署源码(NNOM_Demo)
-- 二次开发方案   
+- 二次开发方案    
 
 ![image-20241103020624456](markdown-img/README.assets/image-20241103020624456.png)
 
