@@ -2,7 +2,7 @@
 
 基于STM32部署卷积神经网络控制设备方案-AI项目-STM32部署卷积神经网络方案-红外信号复制方案-轨迹识别
 
-项目包含下述内容
+项目包含下述内容 
 
 - 硬件部分、PCB制板、BOM表文件等等 (**Hardware**)
 - 外壳、3D打印文件 (**3D_print**)
@@ -12,7 +12,13 @@
 - 环境安装包、工具包(Install_package) + 嵌入式神经网络部署源码(NNOM_Demo)
 - 二次开发方案     
 
-![image-20241103020624456](markdown-img/README.assets/image-20241103020624456.png)
+![c4aa4c53b962efb757d301b2d99c8b8](markdown-img/README.assets/c4aa4c53b962efb757d301b2d99c8b8.jpg)
+
+![993ff8de627a841d972dc804b73ace5](markdown-img/README.assets/993ff8de627a841d972dc804b73ace5.jpg)
+
+
+
+
 
 
 
@@ -1421,7 +1427,11 @@ PCB部分 （如果你自己画的有问题  或者不知道是否正确 都可�
 
 # 12.外壳部分-3D打印工程详解
 
-.\电子法棒\3D_print 为外壳部分 3D打印的工程文件 可以直接打印<img src="markdown-img/README.assets/image-20241103020421826.png" alt="image-20241103020421826" style="zoom: 25%;" />
+.\电子法棒\3D_print 为外壳部分 3D打印的工程文件 可以直接打印
+
+![9404b233c03fcaab22ccdd7714ffd20](markdown-img/README.assets/9404b233c03fcaab22ccdd7714ffd20.jpg)
+
+![5cdd1d0cbe8159423bd432bfd3ee7e7](markdown-img/README.assets/5cdd1d0cbe8159423bd432bfd3ee7e7.jpg)
 
 <img src="markdown-img/README.assets/image-20241103020507310.png" alt="image-20241103020507310" style="zoom: 50%;" />
 
